@@ -273,6 +273,12 @@ tls:
     keySize: 4096
     keyAlgorithm: RSA
     keyEncoding: PKCS8
+    # SAN generation mode for generated certificates:
+    # - wildcard (default): use wildcard SANs (existing behavior)
+    # - fqdn: for StatefulSet components, generate explicit per-pod FQDN SANs
+    #         from replica counts
+    # - none: do not add automatic SAN entries (use tls.<component>.dnsNames and/or ipAddresses)
+    sanMode: wildcard
   # settings for generating certs for proxy
   proxy:
     enabled: false

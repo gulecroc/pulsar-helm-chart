@@ -60,6 +60,45 @@ Define the pulsar certs ca issuer secret name
 {{- end -}}
 
 {{/*
+Return the StatefulSet service name for a certificate component.
+Usage: {{ include "pulsar.certs.statefulset.serviceName" (dict "root" . "component" "broker") }}
+*/}}
+{{- define "pulsar.certs.statefulset.serviceName" -}}
+{{- if eq .component "broker" -}}
+{{- template "pulsar.broker.service.headless" .root -}}
+{{- else if eq .component "zookeeper" -}}
+{{- template "pulsar.zookeeper.service.headless" .root -}}
+{{- else if eq .component "function-worker" -}}
+{{- template "pulsar.function_worker.service.headless" .root -}}
+{{- else -}}
+{{- printf "%s-%s" (include "pulsar.fullname" .root) .component -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Return the StatefulSet replica count for a certificate component.
+*/}}
+{{- define "pulsar.certs.statefulset.replicaCount" -}}
+{{- if eq .component "broker" -}}
+{{- default 1 .root.Values.broker.replicaCount -}}
+{{- else if eq .component "zookeeper" -}}
+{{- default 1 .root.Values.zookeeper.replicaCount -}}
+{{- else if eq .component "bookie" -}}
+{{- default 1 .root.Values.bookkeeper.replicaCount -}}
+{{- else if eq .component "proxy" -}}
+{{- default 1 .root.Values.proxy.replicaCount -}}
+{{- else if eq .component "toolset" -}}
+{{- default 1 .root.Values.toolset.replicaCount -}}
+{{- else if eq .component "recovery" -}}
+{{- default 1 .root.Values.autorecovery.replicaCount -}}
+{{- else if eq .component "function-worker" -}}
+{{- default 1 .root.Values.function_worker.replicaCount -}}
+{{- else -}}
+1
+{{- end -}}
+{{- end -}}
+
+{{/*
 Common certificate template
 Usage: {{- include "pulsar.cert.template" (dict "root" . "componentConfig" .Values.proxy "tlsConfig" .Values.tls.proxy) -}}
 */}}
@@ -106,14 +145,34 @@ spec:
 {{- if .tlsConfig.dnsNames }}
 {{ toYaml .tlsConfig.dnsNames | indent 4 }}
 {{- end }}
-    {{- if or (eq .componentConfig.component "broker") (eq .componentConfig.component "zookeeper") }}
-    - {{ printf "*.%s-%s-headless.%s.svc.%s" (include "pulsar.fullname" .root) .componentConfig.component (include "pulsar.namespace" .root) .root.Values.clusterDomain | quote }}
-    - {{ printf "%s-%s-headless.%s.svc.%s" (include "pulsar.fullname" .root) .componentConfig.component (include "pulsar.namespace" .root) .root.Values.clusterDomain | quote }}
-    {{- else }}
-    - {{ printf "*.%s-%s.%s.svc.%s" (include "pulsar.fullname" .root) .componentConfig.component (include "pulsar.namespace" .root) .root.Values.clusterDomain | quote }}
+    {{- $root := .root -}}
+    {{- $component := .componentConfig.component -}}
+    {{- $sanMode := default "wildcard" .root.Values.tls.common.sanMode -}}
+    {{- if not (has $sanMode (list "wildcard" "fqdn" "none")) -}}
+    {{- fail (printf "tls.common.sanMode must be one of: wildcard, fqdn, none (got %q)" $sanMode) -}}
+    {{- end -}}
+    {{- $statefulSetComponents := list "zookeeper" "bookie" "broker" "proxy" "toolset" "recovery" "function-worker" -}}
+    {{- $isStatefulSetComponent := has $component $statefulSetComponents -}}
+    {{- if eq $sanMode "wildcard" }}
+      {{- if or (eq $component "broker") (eq $component "zookeeper") }}
+    - {{ printf "*.%s-%s-headless.%s.svc.%s" (include "pulsar.fullname" $root) $component (include "pulsar.namespace" $root) $root.Values.clusterDomain | quote }}
+      {{- else }}
+    - {{ printf "*.%s-%s.%s.svc.%s" (include "pulsar.fullname" $root) $component (include "pulsar.namespace" $root) $root.Values.clusterDomain | quote }}
+      {{- end }}
+    {{- else if and (eq $sanMode "fqdn") $isStatefulSetComponent }}
+      {{- $serviceName := include "pulsar.certs.statefulset.serviceName" (dict "root" $root "component" $component) -}}
+      {{- $replicaCount := (include "pulsar.certs.statefulset.replicaCount" (dict "root" $root "component" $component) | int) -}}
+      {{- if gt $replicaCount 0 }}
+        {{- range $i := until $replicaCount }}
+    - {{ printf "%s-%d.%s.%s.svc.%s" (printf "%s-%s" (include "pulsar.fullname" $root) $component) $i $serviceName (include "pulsar.namespace" $root) $root.Values.clusterDomain | quote }}
+        {{- end }}
+      {{- end }}
     {{- end }}
-    - {{ printf "%s-%s.%s.svc.%s" (include "pulsar.fullname" .root) .componentConfig.component (include "pulsar.namespace" .root) .root.Values.clusterDomain | quote }}
-    - {{ printf "%s-%s" (include "pulsar.fullname" .root) .componentConfig.component | quote }}
+    {{- if or (eq $component "broker") (eq $component "zookeeper") }}
+    - {{ printf "%s-%s-headless.%s.svc.%s" (include "pulsar.fullname" $root) $component (include "pulsar.namespace" $root) $root.Values.clusterDomain | quote }}
+    {{- end }}
+    - {{ printf "%s-%s.%s.svc.%s" (include "pulsar.fullname" $root) $component (include "pulsar.namespace" $root) $root.Values.clusterDomain | quote }}
+    - {{ printf "%s-%s" (include "pulsar.fullname" $root) $component | quote }}
 {{- if .tlsConfig.ipAddresses }}
   ipAddresses:
 {{ toYaml .tlsConfig.ipAddresses | indent 4 }}
