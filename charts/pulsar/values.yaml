@@ -277,7 +277,9 @@ tls:
     # - wildcard (default): use wildcard SANs (existing behavior)
     # - fqdn: for StatefulSet components, generate explicit per-pod FQDN SANs
     #         from component replicaCount or autoscaling maxReplicas
-    # - none: do not add automatic SAN entries
+    # - none: no wildcard or per-pod SANs; only the service FQDN and short name are added
+    #         (plus the headless name for broker/zookeeper). Use tls.<component>.dnsNames
+    #         and/or ipAddresses to add your own.
     sanMode: wildcard
   # settings for generating certs for proxy
   proxy:
