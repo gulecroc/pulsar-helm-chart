@@ -61,14 +61,14 @@ Define the pulsar certs ca issuer secret name
 
 {{/*
 Return the StatefulSet service name for a certificate component.
-Usage: {{ include "pulsar.certs.statefulset.serviceName" (dict "root" . "component" "broker") }}
+Usage: {{ include "pulsar.certs.statefulset.serviceName" (dict "root" . "componentKey" "broker") }}
 */}}
 {{- define "pulsar.certs.statefulset.serviceName" -}}
-{{- if eq .component "broker" -}}
+{{- if eq .componentKey "broker" -}}
 {{- template "pulsar.broker.service.headless" .root -}}
-{{- else if eq .component "zookeeper" -}}
+{{- else if eq .componentKey "zookeeper" -}}
 {{- template "pulsar.zookeeper.service.headless" .root -}}
-{{- else if eq .component "function-worker" -}}
+{{- else if eq .componentKey "function-worker" -}}
 {{- template "pulsar.function_worker.service.headless" .root -}}
 {{- else -}}
 {{- printf "%s-%s" (include "pulsar.fullname" .root) .component -}}
@@ -78,30 +78,20 @@ Usage: {{ include "pulsar.certs.statefulset.serviceName" (dict "root" . "compone
 {{/*
 Return the replica count for certificate SAN FQDN generation.
 When autoscaling is enabled, uses maxReplicas; otherwise uses replicaCount.
-Usage: {{ include "pulsar.certs.replicaCount" (dict "root" . "component" "broker") }}
+Usage: {{ include "pulsar.certs.replicaCount" (dict "componentKey" "broker" "componentConfig" .Values.broker) }}
 */}}
 {{- define "pulsar.certs.replicaCount" -}}
-{{- $component := .component -}}
-{{- $componentConfigs := dict
-  "broker" .root.Values.broker
-  "proxy" .root.Values.proxy
-  "zookeeper" .root.Values.zookeeper
-  "bookie" .root.Values.bookkeeper
-  "toolset" .root.Values.toolset
-  "recovery" .root.Values.autorecovery
-  "function-worker" .root.Values.function_worker -}}
-{{- if not (hasKey $componentConfigs $component) -}}
-{{- fail (printf "Unknown component %q for pulsar.certs.replicaCount" $component) -}}
-{{- end -}}
-{{- $componentConfig := index $componentConfigs $component -}}
-{{- $autoscaledComponents := list "broker" "proxy" "function-worker" -}}
-{{- if and (has $component $autoscaledComponents) $componentConfig.autoscaling.enabled -}}
+{{- $componentKey := .componentKey -}}
+{{- $componentConfig := .componentConfig -}}
+{{- $autoscaledComponentKeys := list "broker" "proxy" -}}
+{{- if and (has $componentKey $autoscaledComponentKeys) $componentConfig.autoscaling.enabled -}}
 {{- if not $componentConfig.autoscaling.maxReplicas -}}
-{{- fail (printf "%s.autoscaling.maxReplicas must be defined when %s.autoscaling.enabled is true" $component $component) -}}
+{{- fail (printf "%s.autoscaling.maxReplicas must be defined when %s.autoscaling.enabled is true" $componentKey $componentKey) -}}
 {{- end -}}
 {{- $componentConfig.autoscaling.maxReplicas -}}
 {{- else -}}
 {{- $componentConfig.replicaCount -}}
+{{- end -}}
 {{- end -}}
 
 {{/*
@@ -152,29 +142,30 @@ spec:
 {{ toYaml .tlsConfig.dnsNames | indent 4 }}
 {{- end }}
     {{- $root := .root -}}
+  {{- $componentKey := .componentKey -}}
     {{- $component := .componentConfig.component -}}
     {{- $sanMode := default "wildcard" .root.Values.tls.common.sanMode -}}
     {{- if not (has $sanMode (list "wildcard" "fqdn" "none")) -}}
     {{- fail (printf "tls.common.sanMode must be one of: wildcard, fqdn, none (got %q)" $sanMode) -}}
     {{- end -}}
-    {{- $statefulSetComponents := list "zookeeper" "bookie" "broker" "proxy" "toolset" "recovery" "function-worker" -}}
-    {{- $isStatefulSetComponent := has $component $statefulSetComponents -}}
+    {{- $statefulSetComponentKeys := list "zookeeper" "bookie" "broker" "proxy" "toolset" "recovery" "function-worker" -}}
+    {{- $isStatefulSetComponent := has $componentKey $statefulSetComponentKeys -}}
     {{- if eq $sanMode "wildcard" }}
-      {{- if or (eq $component "broker") (eq $component "zookeeper") }}
+      {{- if or (eq $componentKey "broker") (eq $componentKey "zookeeper") }}
     - {{ printf "*.%s-%s-headless.%s.svc.%s" (include "pulsar.fullname" $root) $component (include "pulsar.namespace" $root) $root.Values.clusterDomain | quote }}
       {{- else }}
     - {{ printf "*.%s-%s.%s.svc.%s" (include "pulsar.fullname" $root) $component (include "pulsar.namespace" $root) $root.Values.clusterDomain | quote }}
       {{- end }}
     {{- else if and (eq $sanMode "fqdn") $isStatefulSetComponent }}
-      {{- $serviceName := include "pulsar.certs.statefulset.serviceName" (dict "root" $root "component" $component) -}}
-      {{- $replicaCount := (include "pulsar.certs.replicaCount" (dict "root" $root "component" $component) | int) -}}
+      {{- $serviceName := include "pulsar.certs.statefulset.serviceName" (dict "root" $root "componentKey" $componentKey "component" $component) -}}
+      {{- $replicaCount := (include "pulsar.certs.replicaCount" (dict "componentKey" $componentKey "componentConfig" .componentConfig) | int) -}}
       {{- if gt $replicaCount 0 }}
         {{- range $i := until $replicaCount }}
     - {{ printf "%s-%d.%s.%s.svc.%s" (printf "%s-%s" (include "pulsar.fullname" $root) $component) $i $serviceName (include "pulsar.namespace" $root) $root.Values.clusterDomain | quote }}
         {{- end }}
       {{- end }}
     {{- end }}
-    {{- if or (eq $component "broker") (eq $component "zookeeper") }}
+    {{- if or (eq $componentKey "broker") (eq $componentKey "zookeeper") }}
     - {{ printf "%s-%s-headless.%s.svc.%s" (include "pulsar.fullname" $root) $component (include "pulsar.namespace" $root) $root.Values.clusterDomain | quote }}
     {{- end }}
     - {{ printf "%s-%s.%s.svc.%s" (include "pulsar.fullname" $root) $component (include "pulsar.namespace" $root) $root.Values.clusterDomain | quote }}
