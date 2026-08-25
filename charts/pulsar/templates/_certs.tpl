@@ -76,26 +76,32 @@ Usage: {{ include "pulsar.certs.statefulset.serviceName" (dict "root" . "compone
 {{- end -}}
 
 {{/*
-Return the StatefulSet replica count for a certificate component.
+Return the replica count for certificate SAN FQDN generation.
+When autoscaling is enabled, uses maxReplicas; otherwise uses replicaCount.
+Usage: {{ include "pulsar.certs.replicaCount" (dict "root" . "component" "broker") }}
 */}}
-{{- define "pulsar.certs.statefulset.replicaCount" -}}
-{{- if eq .component "broker" -}}
-{{- default 1 .root.Values.broker.replicaCount -}}
-{{- else if eq .component "zookeeper" -}}
-{{- default 1 .root.Values.zookeeper.replicaCount -}}
-{{- else if eq .component "bookie" -}}
-{{- default 1 .root.Values.bookkeeper.replicaCount -}}
-{{- else if eq .component "proxy" -}}
-{{- default 1 .root.Values.proxy.replicaCount -}}
-{{- else if eq .component "toolset" -}}
-{{- default 1 .root.Values.toolset.replicaCount -}}
-{{- else if eq .component "recovery" -}}
-{{- default 1 .root.Values.autorecovery.replicaCount -}}
-{{- else if eq .component "function-worker" -}}
-{{- default 1 .root.Values.function_worker.replicaCount -}}
-{{- else -}}
-1
+{{- define "pulsar.certs.replicaCount" -}}
+{{- $component := .component -}}
+{{- $componentConfigs := dict
+  "broker" .root.Values.broker
+  "proxy" .root.Values.proxy
+  "zookeeper" .root.Values.zookeeper
+  "bookie" .root.Values.bookkeeper
+  "toolset" .root.Values.toolset
+  "recovery" .root.Values.autorecovery
+  "function-worker" .root.Values.function_worker -}}
+{{- if not (hasKey $componentConfigs $component) -}}
+{{- fail (printf "Unknown component %q for pulsar.certs.replicaCount" $component) -}}
 {{- end -}}
+{{- $componentConfig := index $componentConfigs $component -}}
+{{- $autoscaledComponents := list "broker" "proxy" "function-worker" -}}
+{{- if and (has $component $autoscaledComponents) $componentConfig.autoscaling.enabled -}}
+{{- if not $componentConfig.autoscaling.maxReplicas -}}
+{{- fail (printf "%s.autoscaling.maxReplicas must be defined when %s.autoscaling.enabled is true" $component $component) -}}
+{{- end -}}
+{{- $componentConfig.autoscaling.maxReplicas -}}
+{{- else -}}
+{{- $componentConfig.replicaCount -}}
 {{- end -}}
 
 {{/*
@@ -161,7 +167,7 @@ spec:
       {{- end }}
     {{- else if and (eq $sanMode "fqdn") $isStatefulSetComponent }}
       {{- $serviceName := include "pulsar.certs.statefulset.serviceName" (dict "root" $root "component" $component) -}}
-      {{- $replicaCount := (include "pulsar.certs.statefulset.replicaCount" (dict "root" $root "component" $component) | int) -}}
+      {{- $replicaCount := (include "pulsar.certs.replicaCount" (dict "root" $root "component" $component) | int) -}}
       {{- if gt $replicaCount 0 }}
         {{- range $i := until $replicaCount }}
     - {{ printf "%s-%d.%s.%s.svc.%s" (printf "%s-%s" (include "pulsar.fullname" $root) $component) $i $serviceName (include "pulsar.namespace" $root) $root.Values.clusterDomain | quote }}

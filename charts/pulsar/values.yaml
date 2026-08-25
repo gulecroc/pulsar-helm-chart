@@ -276,8 +276,8 @@ tls:
     # SAN generation mode for generated certificates:
     # - wildcard (default): use wildcard SANs (existing behavior)
     # - fqdn: for StatefulSet components, generate explicit per-pod FQDN SANs
-    #         from replica counts
-    # - none: do not add automatic SAN entries (use tls.<component>.dnsNames and/or ipAddresses)
+    #         from component replicaCount or autoscaling maxReplicas
+    # - none: do not add automatic SAN entries
     sanMode: wildcard
   # settings for generating certs for proxy
   proxy:
@@ -286,6 +286,7 @@ tls:
     # set to false if you want to use an existing certificate
     createCert: true
     # The dnsNames field specifies a list of Subject Alternative Names to be associated with the certificate.
+    # Works in addition to the automatically generated SANs (if any) based on the `sanMode` setting.
     dnsNames:
     # - example.com
     # The ipAddresses fields specifies a list of IP addresses to include as SANs in the certificate.
@@ -306,6 +307,7 @@ tls:
     enabled: false
     cert_name: tls-broker
     # The dnsNames field specifies a list of Subject Alternative Names to be associated with the certificate.
+    # Works in addition to the automatically generated SANs (if any) based on the `sanMode` setting.
     dnsNames:
     # - example.com
     # The ipAddresses fields specifies a list of IP addresses to include as SANs in the certificate.
@@ -325,6 +327,10 @@ tls:
   bookie:
     enabled: false
     cert_name: tls-bookie
+    # The dnsNames field specifies a list of Subject Alternative Names to be associated with the certificate.
+    # Works in addition to the automatically generated SANs (if any) based on the `sanMode` setting.
+    dnsNames:
+    # - example.com
     cacerts:
       enabled: false
       certs:
@@ -338,6 +344,10 @@ tls:
   zookeeper:
     enabled: false
     cert_name: tls-zookeeper
+    # The dnsNames field specifies a list of Subject Alternative Names to be associated with the certificate.
+    # Works in addition to the automatically generated SANs (if any) based on the `sanMode` setting.
+    dnsNames:
+    # - example.com
     cacerts:
       enabled: false
       certs:
@@ -350,6 +360,10 @@ tls:
   # settings for generating certs for recovery
   autorecovery:
     cert_name: tls-recovery
+    # The dnsNames field specifies a list of Subject Alternative Names to be associated with the certificate.
+    # Works in addition to the automatically generated SANs (if any) based on the `sanMode` setting.
+    dnsNames:
+    # - example.com
     cacerts:
       enabled: false
       certs:
@@ -362,6 +376,10 @@ tls:
   # settings for generating certs for toolset
   toolset:
     cert_name: tls-toolset
+    # The dnsNames field specifies a list of Subject Alternative Names to be associated with the certificate.
+    # Works in addition to the automatically generated SANs (if any) based on the `sanMode` setting.
+    dnsNames:
+    # - example.com
     cacerts:
       enabled: false
       certs:
@@ -387,6 +405,7 @@ tls:
     # set to false if you want to use an existing certificate
     createCert: true
     # The dnsNames field specifies a list of Subject Alternative Names to be associated with the certificate.
+    # Works in addition to the automatically generated SANs (if any) based on the `sanMode` setting.
     dnsNames:
     # - example.com
     # The ipAddresses fields specifies a list of IP addresses to include as SANs in the certificate.
