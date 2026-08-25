@@ -495,6 +495,35 @@ helm upgrade -n <namespace> -f values.yaml <pulsar-release-name> apachepulsar/pu
 
 For more detailed information, see our [Upgrading](http://pulsar.apache.org/docs/helm-upgrade/) guide.
 
+## Upgrading to Helm chart version 4.8.0
+
+### X.509 certificate subject
+
+In order to define the various parameters of the X.509 certificate subject, you need to update `tls.common` values :
+
+```
+# before
+tls:
+  common:
+    organization:
+      - pulsar
+# after
+tls:
+  common:
+    subject:
+      organizations:
+        - pulsar
+      # countries: []
+      # organizationalUnits: []
+      # localities: []
+      # provinces: []
+      # streetAddresses: []
+      # postalCodes: []
+      # serialNumber: ""
+```
+
+The upgrade will fail if you still use the old value `tls.common.organization`.
+
 ## Upgrading to Helm chart version 4.6.0
 
 ### ZooKeeper and Broker Services split into ClusterIP + headless
