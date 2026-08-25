@@ -35,7 +35,7 @@
 
 {{- if .Values.tls.function_worker.enabled }}
 {{- if and .Values.components.function_worker .Values.tls.function_worker.createCert }}
-{{ include "pulsar.cert.template" (dict "root" . "componentKey" "function-worker" "componentConfig" .Values.function_worker "tlsConfig" .Values.tls.function_worker) }}
+{{ include "pulsar.cert.template" (dict "root" . "componentKey" "function_worker" "componentConfig" .Values.function_worker "tlsConfig" .Values.tls.function_worker) }}
 ---
 {{- end }}
 {{- end }}
@@ -46,12 +46,12 @@
 {{- end }}
 
 {{- if or .Values.tls.bookie.enabled .Values.tls.zookeeper.enabled }}
-{{ include "pulsar.cert.template" (dict "root" . "componentKey" "bookie" "componentConfig" .Values.bookkeeper "tlsConfig" .Values.tls.bookie) }}
+{{ include "pulsar.cert.template" (dict "root" . "componentKey" "bookkeeper" "componentConfig" .Values.bookkeeper "tlsConfig" .Values.tls.bookie) }}
 ---
 {{- end }}
 
 {{- if .Values.tls.zookeeper.enabled }}
-{{ include "pulsar.cert.template" (dict "root" . "componentKey" "recovery" "componentConfig" .Values.autorecovery "tlsConfig" .Values.tls.autorecovery) }}
+{{ include "pulsar.cert.template" (dict "root" . "componentKey" "autorecovery" "componentConfig" .Values.autorecovery "tlsConfig" .Values.tls.autorecovery) }}
 ---
 {{ include "pulsar.cert.template" (dict "root" . "componentKey" "toolset" "componentConfig" .Values.toolset "tlsConfig" .Values.tls.toolset) }}
 ---
