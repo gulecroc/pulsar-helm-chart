@@ -275,11 +275,11 @@ tls:
     keyEncoding: PKCS8
     # SAN generation mode for generated certificates:
     # - wildcard (default): use wildcard SANs (existing behavior)
-    # - fqdn: for StatefulSet components, generate explicit per-pod FQDN SANs
-    #         from component replicaCount or autoscaling maxReplicas
+    # - fqdn: generate explicit per-pod FQDN SANs from component replicaCount or autoscaling maxReplicas
     # - none: no wildcard or per-pod SANs; only the service FQDN and short name are added
     #         (plus the headless name for broker/zookeeper). Use tls.<component>.dnsNames
     #         and/or ipAddresses to add your own.
+    # /!\ Any modification will require a restart of the component pods to pick up the new certs.
     sanMode: wildcard
   # settings for generating certs for proxy
   proxy:
